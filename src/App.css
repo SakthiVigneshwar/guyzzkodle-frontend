@@ -1,0 +1,47 @@
+body {
+  margin: 0;
+  background: linear-gradient(to right, #101010, #1b1b1b);
+  color: white;
+  font-family: "Segoe UI", sans-serif;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.entry,
+.game,
+.result,
+.admin {
+  text-align: center;
+  padding: 50px;
+}
+
+input {
+  padding: 10px;
+  font-size: 16px;
+  margin: 10px;
+  width: 250px;
+}
+
+button {
+  padding: 10px 20px;
+  background-color: #ffaa00;
+  color: black;
+  font-weight: bold;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #cc8800;
+}
+
+.popup-img {
+  width: 150px;
+  margin-top: 20px;
+}
+
+.wrong {
+  color: red;
+  font-weight: bold;
+}
