@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from "react";
 import Confetti from "./Confetti";
 
+const baseURL = process.env.REACT_APP_API_BASE_URL;
+
 function isSimilar(a, b) {
   a = a.trim().toLowerCase();
   b = b.trim().toLowerCase();
@@ -73,7 +75,7 @@ function ClueGame() {
 
     setLoading(true);
 
-    fetch(`http://localhost:8080/api/participant/check/${participant}`)
+    fetch(`${baseURL}/api/participant/check/${participant}`)
       .then((res) => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -100,7 +102,7 @@ function ClueGame() {
       localStorage.setItem("completionTime", totalTime.toString());
       setCompleted(true);
 
-      fetch("http://localhost:8080/api/participant/submit", {
+      fetch(`${baseURL}/api/participant/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -128,7 +130,7 @@ function ClueGame() {
   if (!submitted) {
     return (
       <div className="entry">
-        <h1>🎬 Guyzz Kodle</h1>
+        <h1>🎬 Guyz Kodle</h1>
         <input
           value={participant}
           onChange={(e) => setParticipant(e.target.value)}
