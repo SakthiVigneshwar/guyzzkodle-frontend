@@ -4,7 +4,9 @@ function GuesserListPage() {
   const [participants, setParticipants] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:8080/api/participant/all")
+    fetch(
+      "http://guyzkodlebackend-production.up.railway.app/api/participant/all"
+    )
       .then((res) => res.json())
       .then((data) => {
         setParticipants(data);
