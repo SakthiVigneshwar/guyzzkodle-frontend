@@ -1,5 +1,6 @@
+// 📁 ClueGame.jsx
 import React, { useState, useEffect } from "react";
-import correctImage from "../assests/zencorct.png"; // adjust the path if needed
+import Confetti from "./Confetti";
 
 function isSimilar(a, b) {
   a = a.trim().toLowerCase();
@@ -37,7 +38,6 @@ function ClueGame() {
   const [currentClueIndex, setCurrentClueIndex] = useState(0);
   const [guess, setGuess] = useState("");
   const [popup, setPopup] = useState("");
-  const [showImg, setShowImg] = useState(false);
   const [startTime, setStartTime] = useState(null);
   const [completed, setCompleted] = useState(false);
   const [timeTaken, setTimeTaken] = useState(0);
@@ -98,7 +98,6 @@ function ClueGame() {
       const totalTime = Math.floor((Date.now() - startTime) / 1000);
       setTimeTaken(totalTime);
       localStorage.setItem("completionTime", totalTime.toString());
-      setShowImg(true);
       setCompleted(true);
 
       fetch("http://localhost:8080/api/participant/submit", {
@@ -111,7 +110,7 @@ function ClueGame() {
       });
     } else {
       let count = 3;
-      setPopup(`❌ Wrong guess! Next clue in ${count}...`);
+      setPopup(`❌ Incorrect! Next clue in ${count}...`);
       const interval = setInterval(() => {
         count -= 1;
         if (count === 0) {
@@ -120,7 +119,7 @@ function ClueGame() {
           setGuess("");
           setPopup("");
         } else {
-          setPopup(`❌ Wrong guess! Next clue in ${count}...`);
+          setPopup(`❌ Incorrect! Next clue in ${count}...`);
         }
       }, 1000);
     }
@@ -145,17 +144,10 @@ function ClueGame() {
             ❓ How to Play
           </button>
           {showHowTo && (
-            <div
-              style={{
-                marginTop: "10px",
-                padding: "10px",
-                backgroundColor: "#b11313ff",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-              }}
-            >
-              <p style={{ margin: 0 }}>
-                As u already know you're watching it dumbb touch it again
+            <div className="howto-box">
+              <p>
+                You probably know how this works. But just in case – enter your
+                name, and start guessing the movie based on the clues!
               </p>
             </div>
           )}
@@ -178,12 +170,10 @@ function ClueGame() {
   if (completed) {
     return (
       <div className="result">
-        <h2>🎉 Congrats {participant}!</h2>
+        <h2 className="success-text">🎉 Congrats {participant}!</h2>
         <p>You guessed the movie correctly!</p>
-        <p>Time Taken: {timeTaken} seconds</p>
-        {showImg && (
-          <img src={correctImage} alt="Correct" className="popup-img" />
-        )}
+        <p className="bold-text">⏱️ Time Taken: {timeTaken} seconds</p>
+        <Confetti />
       </div>
     );
   }
