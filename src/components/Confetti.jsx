@@ -9,16 +9,24 @@ const Confetti = () => {
     container.className = "confetti-container";
     document.body.appendChild(container);
 
-    const interval = setInterval(() => {
+    const createConfetti = () => {
       const confetti = document.createElement("div");
       confetti.className = "confetti-emoji";
       confetti.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+
+      // Random position and animation properties
       confetti.style.left = `${Math.random() * 100}%`;
-      confetti.style.animationDuration = `${Math.random() * 2 + 2}s`;
+      confetti.style.fontSize = `${Math.random() * 15 + 20}px`; // 20px to 35px
+      confetti.style.animationDuration = `${Math.random() * 2 + 2}s`; // 2s to 4s
+      confetti.style.animationDelay = `${Math.random()}s`;
+
       container.appendChild(confetti);
 
-      setTimeout(() => confetti.remove(), 3000);
-    }, 50);
+      // Remove confetti after animation completes
+      setTimeout(() => confetti.remove(), 5000);
+    };
+
+    const interval = setInterval(createConfetti, 100);
 
     return () => {
       clearInterval(interval);
