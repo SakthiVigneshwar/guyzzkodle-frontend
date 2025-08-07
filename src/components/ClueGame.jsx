@@ -52,16 +52,20 @@ function ClueGame() {
 
   const slot = getSlot();
   const date = new Date().toISOString().split("T")[0];
-  const todayKey = `movieClues_${date}_${slot}`;
 
   useEffect(() => {
-    const data = JSON.parse(localStorage.getItem(todayKey));
-    if (data) {
-      setClues(data.clues || []);
-      setAnswer(data.answer || "");
-    } else {
-      alert(`⚠️ No clues found for today (${slot}). Ask admin to set it.`);
-    }
+    fetch(`${baseURL}/api/clues?date=${date}&slot=${slot}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("No clues found");
+        return res.json();
+      })
+      .then((data) => {
+        setClues(data.clues || []);
+        setAnswer(data.answer || "");
+      })
+      .catch(() => {
+        alert(`⚠️ No clues found for today (${slot}). Ask admin to set it.`);
+      });
 
     const interval = setInterval(() => {
       const now = new Date();
@@ -71,7 +75,7 @@ function ClueGame() {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [todayKey]);
+  }, [date, slot]);
 
   const handleStart = () => {
     if (!participant.trim()) return;
