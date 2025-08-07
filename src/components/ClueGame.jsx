@@ -1,4 +1,3 @@
-// 📁 ClueGame.jsx
 import React, { useState, useEffect } from "react";
 import Confetti from "./Confetti";
 
@@ -32,6 +31,11 @@ function isSimilar(a, b) {
   return similarity >= 0.5;
 }
 
+function getSlot() {
+  const hour = new Date().getHours();
+  return hour < 12 ? "morning" : "evening";
+}
+
 function ClueGame() {
   const [participant, setParticipant] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -46,14 +50,17 @@ function ClueGame() {
   const [showHowTo, setShowHowTo] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const slot = getSlot();
+  const date = new Date().toISOString().split("T")[0];
+  const todayKey = `movieClues_${date}_${slot}`;
+
   useEffect(() => {
-    const todayKey = "movieClues_" + new Date().toISOString().split("T")[0];
     const data = JSON.parse(localStorage.getItem(todayKey));
     if (data) {
       setClues(data.clues || []);
       setAnswer(data.answer || "");
     } else {
-      alert("⚠️ No movie set for today. Please contact admin.");
+      alert(`⚠️ No clues found for today (${slot}). Ask admin to set it.`);
     }
 
     const interval = setInterval(() => {
@@ -64,7 +71,7 @@ function ClueGame() {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [todayKey]);
 
   const handleStart = () => {
     if (!participant.trim()) return;
@@ -148,8 +155,8 @@ function ClueGame() {
           {showHowTo && (
             <div className="howto-box">
               <p>
-                You probably know how this works. But just in case – enter your
-                name, and start guessing the movie based on the clues!
+                Guess the movie based on the clues. The clues change every
+                morning and evening, so come back later for new challenges!
               </p>
             </div>
           )}
@@ -163,7 +170,7 @@ function ClueGame() {
       <div className="game">
         <h2>No clues available 😢</h2>
         <p>
-          Please go to the <a href="/admin">admin page</a> and add 5 clues.
+          Please go to the <a href="/admin">admin page</a> and add clues.
         </p>
       </div>
     );

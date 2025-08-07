@@ -2,134 +2,101 @@ import React, { useState, useEffect } from "react";
 
 function AdminPage() {
   const emptyClues = ["", "", "", "", ""];
-  const [todayClues, setTodayClues] = useState(emptyClues);
-  const [todayAnswer, setTodayAnswer] = useState("");
-  const [nextClues, setNextClues] = useState(emptyClues);
-  const [nextAnswer, setNextAnswer] = useState("");
-  const [timeTaken, setTimeTaken] = useState(null);
+
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split("T")[0]; // yyyy-mm-dd
+  });
+
+  const [selectedSlot, setSelectedSlot] = useState("morning");
+  const [clues, setClues] = useState(emptyClues);
+  const [answer, setAnswer] = useState("");
   const [guesserList, setGuesserList] = useState([]);
 
-  const getTodayKey = () => new Date().toISOString().split("T")[0];
+  const getStorageKey = () => `movieClues_${selectedDate}_${selectedSlot}`;
 
   useEffect(() => {
-    const todayKey = getTodayKey();
-
-    const todayData = JSON.parse(
-      localStorage.getItem("movieClues_" + todayKey)
-    );
-    if (todayData) {
-      setTodayClues(todayData.clues || emptyClues);
-      setTodayAnswer(todayData.answer || "");
+    const key = getStorageKey();
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      setClues(parsed.clues || emptyClues);
+      setAnswer(parsed.answer || "");
     } else {
-      const nextData = JSON.parse(localStorage.getItem("movieClues_next"));
-      if (nextData) {
-        localStorage.setItem(
-          "movieClues_" + todayKey,
-          JSON.stringify(nextData)
-        );
-        setTodayClues(nextData.clues || emptyClues);
-        setTodayAnswer(nextData.answer || "");
-        localStorage.removeItem("movieClues_next");
-      }
-    }
-
-    const storedTime = localStorage.getItem("completionTime");
-    if (storedTime) {
-      setTimeTaken(storedTime);
+      setClues(emptyClues);
+      setAnswer("");
     }
 
     const guessers =
-      JSON.parse(localStorage.getItem("movieGuessers_" + todayKey)) || [];
+      JSON.parse(localStorage.getItem(`movieGuessers_${selectedDate}`)) || [];
     setGuesserList(guessers);
+  }, [selectedDate, selectedSlot]);
 
-    const interval = setInterval(() => {
-      const nowKey = getTodayKey();
-      if (nowKey !== todayKey) {
-        localStorage.removeItem("movieGuessers_" + todayKey);
-        window.location.reload();
-      }
-    }, 60000); // check every 1 minute
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleChange = (index, value, type) => {
-    const updated = type === "today" ? [...todayClues] : [...nextClues];
+  const handleChange = (index, value) => {
+    const updated = [...clues];
     updated[index] = value;
-    type === "today" ? setTodayClues(updated) : setNextClues(updated);
+    setClues(updated);
   };
 
-  const saveData = (type) => {
-    const clues = type === "today" ? todayClues : nextClues;
-    const answer = type === "today" ? todayAnswer : nextAnswer;
-
+  const saveData = () => {
     if (clues.some((c) => c.trim() === "") || answer.trim() === "") {
       alert("❗ Please fill all 5 clues and the answer.");
       return;
     }
-
-    const data = { clues, answer };
-    if (type === "today") {
-      localStorage.setItem("movieClues_" + getTodayKey(), JSON.stringify(data));
-      alert("✅ Today's clues saved!");
-    } else {
-      localStorage.setItem("movieClues_next", JSON.stringify(data));
-      alert("✅ Tomorrow's clues saved!");
-    }
+    const key = getStorageKey();
+    localStorage.setItem(key, JSON.stringify({ clues, answer }));
+    alert("✅ Clues saved for " + selectedDate + " (" + selectedSlot + ")");
   };
 
   return (
     <div className="admin-container">
       <h2 className="admin-heading">🔐 Admin Panel - Movie Clues Setup</h2>
 
-      <div className="clue-section">
-        <h3>🎯 Today’s Clues</h3>
-        {todayClues.map((clue, index) => (
+      <div className="config-section">
+        <label>
+          📅 Select Date:
           <input
-            key={`today-${index}`}
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+          />
+        </label>
+
+        <label>
+          ⏰ Time Slot:
+          <select
+            value={selectedSlot}
+            onChange={(e) => setSelectedSlot(e.target.value)}
+          >
+            <option value="morning">00:00 – 11:59 AM</option>
+            <option value="evening">12:00 PM – 11:59 PM</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="clue-section">
+        <h3>
+          📝 Clues for {selectedDate} ({selectedSlot})
+        </h3>
+        {clues.map((clue, index) => (
+          <input
+            key={`clue-${index}`}
             placeholder={`Clue ${index + 1}`}
             value={clue}
-            onChange={(e) => handleChange(index, e.target.value, "today")}
+            onChange={(e) => handleChange(index, e.target.value)}
           />
         ))}
         <input
           placeholder="Enter Movie Answer"
-          value={todayAnswer}
-          onChange={(e) => setTodayAnswer(e.target.value)}
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
         />
-        <button onClick={() => saveData("today")}>💾 Save Today's Clues</button>
+        <button onClick={saveData}>💾 Save Clues</button>
       </div>
-
-      <div className="clue-section">
-        <h3>⏳ Tomorrow’s Clues (Active at 00:00 AM)</h3>
-        {nextClues.map((clue, index) => (
-          <input
-            key={`next-${index}`}
-            placeholder={`Clue ${index + 1}`}
-            value={clue}
-            onChange={(e) => handleChange(index, e.target.value, "next")}
-          />
-        ))}
-        <input
-          placeholder="Enter Movie Answer"
-          value={nextAnswer}
-          onChange={(e) => setNextAnswer(e.target.value)}
-        />
-        <button onClick={() => saveData("next")}>
-          💾 Save Tomorrow's Clues
-        </button>
-      </div>
-
-      {timeTaken && (
-        <div className="timing-info">
-          <h4>⏱ Last Participant Completion Time:</h4>
-          <p>{timeTaken} seconds</p>
-        </div>
-      )}
 
       {guesserList.length > 0 && (
         <div className="guesser-table">
-          <h4>🧑‍🎓 Today's Participants:</h4>
+          <h4>🧑‍🎓 Today's Participants ({selectedDate}):</h4>
           <table>
             <thead>
               <tr>
