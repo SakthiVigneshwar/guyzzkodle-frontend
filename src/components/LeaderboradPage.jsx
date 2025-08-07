@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
 function LeaderboardPage() {
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8080/api/participant/all")
+    fetch(`${API_BASE_URL}/api/participant/all`)
       .then((res) => res.json())
       .then((data) => {
         setParticipants(data);
@@ -44,7 +46,7 @@ function LeaderboardPage() {
           </thead>
           <tbody>
             {participants.map((p, index) => (
-              <tr key={p.id} style={{ textAlign: "center" }}>
+              <tr key={p.id || index} style={{ textAlign: "center" }}>
                 <td>{index + 1}</td>
                 <td>{p.name}</td>
                 <td>{p.seconds}</td>
