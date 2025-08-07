@@ -1,56 +1,37 @@
 import React, { useState, useEffect } from "react";
 
-const BACKEND_URL = "https://guyzkodlebackend-production.up.railway.app";
+const baseURL =
+  process.env.REACT_APP_API_BASE_URL ||
+  "https://guyzkodlebackend-production.up.railway.app";
 
 function AdminPage() {
   const emptyClues = ["", "", "", "", ""];
-
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split("T")[0]; // yyyy-mm-dd
   });
-
   const [selectedSlot, setSelectedSlot] = useState("morning");
   const [clues, setClues] = useState(emptyClues);
   const [answer, setAnswer] = useState("");
   const [guesserList, setGuesserList] = useState([]);
 
-  // 🔄 Fetch clues from backend when date or slot changes
-  useEffect(() => {
-    const fetchClues = async () => {
-      try {
-        const res = await fetch(
-          `${BACKEND_URL}/clues?date=${selectedDate}&slot=${selectedSlot}`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setClues(data.clues || emptyClues);
-          setAnswer(data.answer || "");
-        } else {
-          setClues(emptyClues);
-          setAnswer("");
-        }
-      } catch (err) {
-        console.error("Failed to fetch clues:", err);
-        setClues(emptyClues);
-        setAnswer("");
-      }
-    };
-
-    fetchClues();
-
-    const guessers =
-      JSON.parse(localStorage.getItem(`movieGuessers_${selectedDate}`)) || [];
-    setGuesserList(guessers);
-  }, [selectedDate, selectedSlot]);
-
-  const handleChange = (index, value) => {
-    const updated = [...clues];
-    updated[index] = value;
-    setClues(updated);
+  const fetchCluesFromBackend = async () => {
+    try {
+      const response = await fetch(
+        `${baseURL}/api/clues?date=${selectedDate}&slot=${selectedSlot}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch clues");
+      const data = await response.json();
+      setClues(data.clues || emptyClues);
+      setAnswer(data.answer || "");
+    } catch (err) {
+      console.warn("No clues found for this slot. You can add new ones.");
+      setClues(emptyClues);
+      setAnswer("");
+    }
   };
 
-  const saveData = async () => {
+  const saveDataToBackend = async () => {
     if (clues.some((c) => c.trim() === "") || answer.trim() === "") {
       alert("❗ Please fill all 5 clues and the answer.");
       return;
@@ -64,22 +45,33 @@ function AdminPage() {
     };
 
     try {
-      const res = await fetch(`${BACKEND_URL}/clues/save`, {
+      const res = await fetch(`${baseURL}/api/clues/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
-      if (res.ok) {
-        alert("✅ Clues saved successfully!");
-      } else {
-        alert("❌ Failed to save clues!");
-      }
+      if (!res.ok) throw new Error("Failed to save clues");
+      alert(`✅ Clues saved for ${selectedDate} (${selectedSlot})`);
     } catch (err) {
-      console.error("Save failed:", err);
-      alert("❌ Server error while saving.");
+      alert("❌ Failed to save clues.");
+      console.error(err);
     }
   };
+
+  const handleChange = (index, value) => {
+    const updated = [...clues];
+    updated[index] = value;
+    setClues(updated);
+  };
+
+  useEffect(() => {
+    fetchCluesFromBackend();
+
+    // Load participant data (still from localStorage)
+    const guessers =
+      JSON.parse(localStorage.getItem(`movieGuessers_${selectedDate}`)) || [];
+    setGuesserList(guessers);
+  }, [selectedDate, selectedSlot]);
 
   return (
     <div className="admin-container">
@@ -87,7 +79,7 @@ function AdminPage() {
 
       <div className="config-section">
         <label>
-          📅 Select Datee:
+          📅 Select Date:
           <input
             type="date"
             value={selectedDate}
@@ -124,7 +116,7 @@ function AdminPage() {
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
         />
-        <button onClick={saveData}>💾 Save Clues</button>
+        <button onClick={saveDataToBackend}>💾 Save Clues</button>
       </div>
 
       {guesserList.length > 0 && (
