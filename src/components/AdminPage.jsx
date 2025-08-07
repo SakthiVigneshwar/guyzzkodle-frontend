@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-// ✅ Change this to match your deployment (Railway backend)
-const API_BASE_URL = "https://guyzkodlebackend-production.up.railway.app";
+const BACKEND_URL = "https://guyzkodlebackend-production.up.railway.app";
 
 function AdminPage() {
   const emptyClues = ["", "", "", "", ""];
@@ -16,32 +15,34 @@ function AdminPage() {
   const [answer, setAnswer] = useState("");
   const [guesserList, setGuesserList] = useState([]);
 
+  // 🔄 Fetch clues from backend when date or slot changes
   useEffect(() => {
+    const fetchClues = async () => {
+      try {
+        const res = await fetch(
+          `${BACKEND_URL}/clues?date=${selectedDate}&slot=${selectedSlot}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setClues(data.clues || emptyClues);
+          setAnswer(data.answer || "");
+        } else {
+          setClues(emptyClues);
+          setAnswer("");
+        }
+      } catch (err) {
+        console.error("Failed to fetch clues:", err);
+        setClues(emptyClues);
+        setAnswer("");
+      }
+    };
+
     fetchClues();
+
     const guessers =
       JSON.parse(localStorage.getItem(`movieGuessers_${selectedDate}`)) || [];
     setGuesserList(guessers);
   }, [selectedDate, selectedSlot]);
-
-  const fetchClues = async () => {
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/clues/by-date-slot?date=${selectedDate}&slot=${selectedSlot}`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setClues(data.clues || emptyClues);
-        setAnswer(data.answer || "");
-      } else {
-        setClues(emptyClues);
-        setAnswer("");
-      }
-    } catch (err) {
-      console.error("Error fetching clues:", err);
-      setClues(emptyClues);
-      setAnswer("");
-    }
-  };
 
   const handleChange = (index, value) => {
     const updated = [...clues];
@@ -55,28 +56,28 @@ function AdminPage() {
       return;
     }
 
+    const payload = {
+      date: selectedDate,
+      slot: selectedSlot,
+      clues,
+      answer,
+    };
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/clues/save`, {
+      const res = await fetch(`${BACKEND_URL}/clues/save`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          date: selectedDate,
-          slot: selectedSlot, // morning or evening
-          clues,
-          answer,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
-      if (response.ok) {
-        alert(`✅ Clues saved for ${selectedDate} (${selectedSlot})`);
+      if (res.ok) {
+        alert("✅ Clues saved successfully!");
       } else {
-        alert("❌ Failed to save clues. Check backend logs.");
+        alert("❌ Failed to save clues!");
       }
-    } catch (error) {
-      console.error("Save failed:", error);
-      alert("🚫 Error connecting to backend.");
+    } catch (err) {
+      console.error("Save failed:", err);
+      alert("❌ Server error while saving.");
     }
   };
 
@@ -86,7 +87,7 @@ function AdminPage() {
 
       <div className="config-section">
         <label>
-          📅 Select Date:
+          📅 Select Datee:
           <input
             type="date"
             value={selectedDate}
