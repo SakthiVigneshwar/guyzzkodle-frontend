@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 
+// ✅ Change this to match your deployment (Railway backend)
+const API_BASE_URL = "https://guyzkodlebackend-production.up.railway.app";
+
 function AdminPage() {
   const emptyClues = ["", "", "", "", ""];
 
@@ -13,24 +16,32 @@ function AdminPage() {
   const [answer, setAnswer] = useState("");
   const [guesserList, setGuesserList] = useState([]);
 
-  const getStorageKey = () => `movieClues_${selectedDate}_${selectedSlot}`;
-
   useEffect(() => {
-    const key = getStorageKey();
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      setClues(parsed.clues || emptyClues);
-      setAnswer(parsed.answer || "");
-    } else {
-      setClues(emptyClues);
-      setAnswer("");
-    }
-
+    fetchClues();
     const guessers =
       JSON.parse(localStorage.getItem(`movieGuessers_${selectedDate}`)) || [];
     setGuesserList(guessers);
   }, [selectedDate, selectedSlot]);
+
+  const fetchClues = async () => {
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/api/clues/by-date-slot?date=${selectedDate}&slot=${selectedSlot}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setClues(data.clues || emptyClues);
+        setAnswer(data.answer || "");
+      } else {
+        setClues(emptyClues);
+        setAnswer("");
+      }
+    } catch (err) {
+      console.error("Error fetching clues:", err);
+      setClues(emptyClues);
+      setAnswer("");
+    }
+  };
 
   const handleChange = (index, value) => {
     const updated = [...clues];
@@ -38,14 +49,35 @@ function AdminPage() {
     setClues(updated);
   };
 
-  const saveData = () => {
+  const saveData = async () => {
     if (clues.some((c) => c.trim() === "") || answer.trim() === "") {
       alert("❗ Please fill all 5 clues and the answer.");
       return;
     }
-    const key = getStorageKey();
-    localStorage.setItem(key, JSON.stringify({ clues, answer }));
-    alert("✅ Clues saved for " + selectedDate + " (" + selectedSlot + ")");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/clues/save`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          date: selectedDate,
+          slot: selectedSlot, // morning or evening
+          clues,
+          answer,
+        }),
+      });
+
+      if (response.ok) {
+        alert(`✅ Clues saved for ${selectedDate} (${selectedSlot})`);
+      } else {
+        alert("❌ Failed to save clues. Check backend logs.");
+      }
+    } catch (error) {
+      console.error("Save failed:", error);
+      alert("🚫 Error connecting to backend.");
+    }
   };
 
   return (
