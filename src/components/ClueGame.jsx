@@ -43,12 +43,16 @@ function ClueGame() {
   const [answer, setAnswer] = useState("");
   const [currentClueIndex, setCurrentClueIndex] = useState(0);
   const [guess, setGuess] = useState("");
-  const [popup, setPopup] = useState("");
   const [startTime, setStartTime] = useState(null);
   const [completed, setCompleted] = useState(false);
   const [timeTaken, setTimeTaken] = useState(0);
   const [showHowTo, setShowHowTo] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // NEW states to handle one attempt only
+  const [attempted, setAttempted] = useState(false);
+  const [resultMessage, setResultMessage] = useState("");
+  const [finalAnswerShown, setFinalAnswerShown] = useState(false);
 
   const slot = getSlot();
   const date = new Date().toISOString().split("T")[0];
@@ -107,48 +111,36 @@ function ClueGame() {
   };
 
   const handleGuess = () => {
+    if (attempted) return; // prevent multiple guesses
+
     const totalTime = Math.floor((Date.now() - startTime) / 1000);
 
-    if (isSimilar(guess, answer)) {
-      setTimeTaken(totalTime);
-      localStorage.setItem("completionTime", totalTime.toString());
-      setCompleted(true);
+    fetch(`${baseURL}/api/participant/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: participant,
+        seconds: totalTime,
+        isCorrect: isSimilar(guess, answer),
+      }),
+    })
+      .then((res) => res.text())
+      .then((msg) => {
+        setAttempted(true);
+        setResultMessage(msg);
 
-      fetch(`${baseURL}/api/participant/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: participant,
-          seconds: totalTime,
-          status: "WIN",
-        }),
-      }).catch((err) => console.error("Submit WIN error:", err));
-    } else {
-      // LOSS submission before showing next clue
-      fetch(`${baseURL}/api/participant/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: participant,
-          seconds: totalTime,
-          status: "LOSS",
-        }),
-      }).catch((err) => console.error("Submit LOSS error:", err));
-
-      let count = 3;
-      setPopup(`❌ Incorrect! Next clue in ${count}...`);
-      const interval = setInterval(() => {
-        count -= 1;
-        if (count === 0) {
-          clearInterval(interval);
-          setCurrentClueIndex((prev) => prev + 1);
-          setGuess("");
-          setPopup("");
+        if (msg.includes("Correct guess")) {
+          setTimeTaken(totalTime);
+          setCompleted(true);
+        } else if (msg.includes("Already attempted")) {
+          setFinalAnswerShown(true);
         } else {
-          setPopup(`❌ Incorrect! Next clue in ${count}...`);
+          setFinalAnswerShown(true);
         }
-      }, 1000);
-    }
+      })
+      .catch(() => {
+        alert("Error submitting guess. Please try again.");
+      });
   };
 
   if (!submitted) {
@@ -204,11 +196,14 @@ function ClueGame() {
     );
   }
 
-  if (currentClueIndex >= clues.length) {
+  if (finalAnswerShown) {
     return (
       <div className="result">
-        <h2>🙁 Sorry {participant}, you've run out of clues.</h2>
-        <p>The correct answer was: {answer}</p>
+        <h2>🙁 Sorry {participant}, you've used your only guess.</h2>
+        <p>
+          The correct answer was: <strong>{answer}</strong>
+        </p>
+        <p>{resultMessage}</p>
       </div>
     );
   }
@@ -216,9 +211,15 @@ function ClueGame() {
   return (
     <div className="game">
       <h2>Hello {participant} 👋</h2>
-      {popup ? (
-        <div className="popup-card">
-          <p>{popup}</p>
+
+      {attempted ? (
+        <div className="result-message">
+          <p>{resultMessage}</p>
+          {finalAnswerShown && (
+            <p>
+              <strong>The correct answer was:</strong> {answer}
+            </p>
+          )}
         </div>
       ) : (
         <>
@@ -230,8 +231,11 @@ function ClueGame() {
             value={guess}
             onChange={(e) => setGuess(e.target.value)}
             placeholder="Enter your guess"
+            disabled={attempted}
           />
-          <button onClick={handleGuess}>Submit</button>
+          <button onClick={handleGuess} disabled={attempted}>
+            Submit
+          </button>
         </>
       )}
     </div>
