@@ -20,80 +20,106 @@ function LeaderboardPage() {
   }, []);
 
   return (
-    <div
-      style={{
-        fontFamily: "Arial, sans-serif",
-        padding: "20px",
-        textAlign: "center",
-        background: "linear-gradient(to bottom, #f0f4ff, #d6e0ff)",
-        minHeight: "100vh",
-      }}
-    >
-      <h1 style={{ color: "#333" }}>🏆 Guzz Kodle Leaderboard</h1>
+    <div style={{ padding: "20px", textAlign: "center" }}>
+      <h1>🏆 Guyzz kodle Leaderboard</h1>
       {loading ? (
         <p>Loading...</p>
       ) : participants.length === 0 ? (
         <p>No participants yet!</p>
       ) : (
-        <table
-          style={{
-            width: "90%",
-            margin: "auto",
-            marginTop: "20px",
-            borderCollapse: "collapse",
-            boxShadow: "0px 4px 12px rgba(0,0,0,0.1)",
-            backgroundColor: "white",
-          }}
-        >
-          <thead>
-            <tr style={{ backgroundColor: "#4a4a8c", color: "white" }}>
-              <th style={thStyle}>#</th>
-              <th style={thStyle}>Name</th>
-              <th style={thStyle}>Attempts</th>
-              <th style={thStyle}>Attempt Number</th>
-              <th style={thStyle}>Seconds</th>
-              <th style={thStyle}>Attempt Date/Time</th>
-              <th style={thStyle}>Status</th>
-              <th style={thStyle}>Completed Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {participants.map((p, index) => (
-              <tr key={p.id || index} style={{ textAlign: "center" }}>
-                <td style={tdStyle}>{index + 1}</td>
-                <td style={tdStyle}>{p.name}</td>
-                <td style={tdStyle}>{p.attempts}</td>
-                <td style={tdStyle}>{p.attemptNumber}</td>
-                <td style={tdStyle}>{p.seconds}</td>
-                <td style={tdStyle}>
-                  {p.attemptDateTime
-                    ? new Date(p.attemptDateTime).toLocaleString()
-                    : ""}
-                </td>
-                <td style={tdStyle}>{p.status}</td>
-                <td style={tdStyle}>
-                  {p.completedDate
-                    ? new Date(p.completedDate).toLocaleDateString()
-                    : ""}
-                </td>
+        <div style={{ overflowX: "auto", padding: "10px" }}>
+          <table
+            style={{
+              width: "100%",
+              maxWidth: "600px",
+              margin: "0 auto",
+              borderCollapse: "collapse",
+              fontSize: "16px",
+            }}
+          >
+            <thead>
+              <tr
+                style={{
+                  backgroundColor: "#222",
+                  color: "white",
+                  textAlign: "center",
+                }}
+              >
+                <th>#</th>
+                <th>Name</th>
+                <th>Time Taken (s)</th>
+                <th>Attempts</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {participants.map((p, index) => (
+                <tr
+                  key={p.id || index}
+                  style={{
+                    textAlign: "center",
+                    borderBottom: "1px solid #ccc",
+                  }}
+                >
+                  <td>{index + 1}</td>
+                  <td>{p.name}</td>
+                  <td>{p.seconds}</td>
+                  <td>{p.attempts}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
+
+      {/* Inline responsive styles */}
+      <style>
+        {`
+          @media (max-width: 600px) {
+            table, thead, tbody, th, td, tr {
+              display: block;
+              width: 100%;
+            }
+
+            thead {
+              display: none;
+            }
+
+            tr {
+              margin-bottom: 15px;
+              background: #111;
+              border: 1px solid #444;
+              border-radius: 8px;
+              padding: 10px;
+            }
+
+            td {
+              text-align: left;
+              padding-left: 50%;
+              position: relative;
+              padding-top: 10px;
+              padding-bottom: 10px;
+              color: #fff;
+            }
+
+            td::before {
+              position: absolute;
+              top: 10px;
+              left: 10px;
+              width: 45%;
+              white-space: nowrap;
+              font-weight: bold;
+              color: #aaa;
+            }
+
+            td:nth-of-type(1)::before { content: "#"; }
+            td:nth-of-type(2)::before { content: "Name"; }
+            td:nth-of-type(3)::before { content: "Time Taken (s)"; }
+            td:nth-of-type(4)::before { content: "Attempts"; }
+          }
+        `}
+      </style>
     </div>
   );
 }
-
-const thStyle = {
-  padding: "10px",
-  border: "1px solid #ccc",
-  fontWeight: "bold",
-};
-
-const tdStyle = {
-  padding: "8px",
-  border: "1px solid #ccc",
-};
 
 export default LeaderboardPage;

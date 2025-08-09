@@ -107,8 +107,9 @@ function ClueGame() {
   };
 
   const handleGuess = () => {
+    const totalTime = Math.floor((Date.now() - startTime) / 1000);
+
     if (isSimilar(guess, answer)) {
-      const totalTime = Math.floor((Date.now() - startTime) / 1000);
       setTimeTaken(totalTime);
       localStorage.setItem("completionTime", totalTime.toString());
       setCompleted(true);
@@ -119,9 +120,21 @@ function ClueGame() {
         body: JSON.stringify({
           name: participant,
           seconds: totalTime,
+          status: "WIN",
         }),
-      });
+      }).catch((err) => console.error("Submit WIN error:", err));
     } else {
+      // LOSS submission before showing next clue
+      fetch(`${baseURL}/api/participant/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: participant,
+          seconds: totalTime,
+          status: "LOSS",
+        }),
+      }).catch((err) => console.error("Submit LOSS error:", err));
+
       let count = 3;
       setPopup(`❌ Incorrect! Next clue in ${count}...`);
       const interval = setInterval(() => {
