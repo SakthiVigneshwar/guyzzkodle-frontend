@@ -71,7 +71,7 @@ function LeaderboardPage() {
         </div>
       )}
 
-      {/* Inline responsive styles */}
+      {/* Responsive table styles */}
       <style>
         {`
           @media (max-width: 600px) {
