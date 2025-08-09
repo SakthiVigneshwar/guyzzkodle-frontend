@@ -1,23 +1,17 @@
 // src/components/ClueGame.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Confetti from "./Confetti";
 
-/**
- * Uses REACT_APP_API_BASE_URL env var, fallback to localhost
- * Example .env:
- * REACT_APP_API_BASE_URL=https://guyzkodlebackend-production.up.railway.app
- */
 const baseURL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8080";
 
-/* fuzzy similarity check (Levenshtein-based threshold) */
+/* fuzzy similarity check */
 function isSimilar(a, b) {
   a = a.trim().toLowerCase();
   b = b.trim().toLowerCase();
+  if (!a || !b) return a === b;
 
-  const lenA = a.length;
-  const lenB = b.length;
-  if (lenA === 0 || lenB === 0) return a === b;
-
+  const lenA = a.length,
+    lenB = b.length;
   const dp = Array.from({ length: lenA + 1 }, () => Array(lenB + 1).fill(0));
 
   for (let i = 0; i <= lenA; i++) dp[i][0] = i;
@@ -34,9 +28,8 @@ function isSimilar(a, b) {
   }
 
   const distance = dp[lenA][lenB];
-  const maxLen = Math.max(lenA, lenB);
-  const similarity = 1 - distance / (maxLen || 1);
-  return similarity >= 0.5;
+  const similarity = 1 - distance / Math.max(lenA, lenB);
+  return similarity >= 0.6; // stricter for fewer false positives
 }
 
 /* morning / evening slot helper */
@@ -58,15 +51,14 @@ export default function ClueGame() {
   const [timeTaken, setTimeTaken] = useState(0);
   const [showHowTo, setShowHowTo] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  // track attempts (1,2,3...) and last attempt we submitted to server to avoid duplicates
   const [attempts, setAttempts] = useState(0);
   const [lastSubmittedAttempt, setLastSubmittedAttempt] = useState(0);
 
+  const popupTimer = useRef(null);
   const slot = getSlot();
-  const date = new Date().toISOString().split("T")[0]; // yyyy-mm-dd
+  const date = new Date().toISOString().split("T")[0];
 
-  /* Fetch clues for today + slot from backend */
+  /* Fetch clues */
   useEffect(() => {
     const abortCtrl = new AbortController();
     setLoading(true);
@@ -92,8 +84,7 @@ export default function ClueGame() {
         }
       });
 
-    // auto-refresh at midnight (reload the page when date changes)
-    const interval = setInterval(() => {
+    const midnightRefresh = setInterval(() => {
       const now = new Date();
       if (now.getHours() === 0 && now.getMinutes() === 0) {
         window.location.reload();
@@ -102,12 +93,11 @@ export default function ClueGame() {
 
     return () => {
       abortCtrl.abort();
-      clearInterval(interval);
+      clearInterval(midnightRefresh);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, slot]);
 
-  /* Start the game (validate participant via API) */
+  /* Start */
   const handleStart = () => {
     if (!participant.trim()) {
       alert("Enter your name to start.");
@@ -141,90 +131,69 @@ export default function ClueGame() {
       });
   };
 
-  /* helper to submit attempt to backend (single unified payload) */
-  const submitAttempt = async ({
-    name,
-    seconds,
-    status,
-    attemptNumber,
-    attemptDateTimeIso,
-    completedDateIso,
-  }) => {
+  /* Submit attempt */
+  const submitAttempt = async (payload) => {
     try {
-      const payload = {
-        name,
-        seconds,
-        status, // "WIN" or "LOSS"
-        attempts: attemptNumber, // you asked to store attempts count; pass attemptNumber
-        attemptDateTime: attemptDateTimeIso, // iso string
-        completedDate: completedDateIso, // yyyy-mm-dd or null
-      };
-
-      // POST to your backend
       const resp = await fetch(`${baseURL}/api/participant/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      if (!resp.ok) {
-        console.error("Submit failed", resp.status);
+      if (resp.ok) {
+        setLastSubmittedAttempt(payload.attempts);
       } else {
-        setLastSubmittedAttempt(attemptNumber);
+        console.error("Submit failed", resp.status);
       }
     } catch (err) {
       console.error("Submit error:", err);
     }
   };
 
-  /* Handle guess submission (correct or incorrect) */
+  /* Guess */
   const handleGuess = () => {
     if (!startTime) {
       alert("Start the game first.");
       return;
     }
+
     const totalTime = Math.floor((Date.now() - startTime) / 1000);
     const newAttempts = attempts + 1;
     setAttempts(newAttempts);
 
     const attemptDateTimeIso = new Date().toISOString();
-    const completedDateIso = isSimilar(guess, answer)
-      ? new Date().toISOString().split("T")[0]
-      : null;
+    const correct = isSimilar(guess, answer);
 
-    if (isSimilar(guess, answer)) {
-      // WIN
+    if (correct) {
       setTimeTaken(totalTime);
       localStorage.setItem("completionTime", totalTime.toString());
       setCompleted(true);
 
-      // submit WIN
       submitAttempt({
         name: participant,
         seconds: totalTime,
         status: "WIN",
-        attemptNumber: newAttempts,
-        attemptDateTimeIso,
-        completedDateIso,
-      }).catch((e) => console.error(e));
+        attempts: newAttempts,
+        attemptDateTime: attemptDateTimeIso,
+        completedDate: date,
+      });
     } else {
-      // WRONG GUESS -> submit LOSS for this attempt
       submitAttempt({
         name: participant,
         seconds: totalTime,
         status: "LOSS",
-        attemptNumber: newAttempts,
-        attemptDateTimeIso,
-        completedDateIso: null,
-      }).catch((e) => console.error(e));
+        attempts: newAttempts,
+        attemptDateTime: attemptDateTimeIso,
+        completedDate: null,
+      });
 
-      // show countdown then show next clue
+      clearTimeout(popupTimer.current);
       let count = 3;
       setPopup(`❌ Incorrect! Next clue in ${count}...`);
-      const interval = setInterval(() => {
-        count -= 1;
+      popupTimer.current = setInterval(() => {
+        count--;
         if (count === 0) {
-          clearInterval(interval);
+          clearInterval(popupTimer.current);
           setCurrentClueIndex((prev) => prev + 1);
           setGuess("");
           setPopup("");
@@ -235,35 +204,35 @@ export default function ClueGame() {
     }
   };
 
-  /* When user runs out of clues and hasn't had a final LOSS recorded, record a final LOSS */
+  /* Out of clues LOSS */
   useEffect(() => {
-    if (!submitted) return;
-    if (completed) return;
-    if (currentClueIndex >= clues.length && clues.length > 0) {
-      // totalTime from start
+    if (!submitted || completed || clues.length === 0) return;
+    if (currentClueIndex >= clues.length && lastSubmittedAttempt < attempts) {
       const totalTime = startTime
         ? Math.floor((Date.now() - startTime) / 1000)
         : 0;
 
-      // attempts may have increased already; ensure we don't double-submit same attempt
-      if (lastSubmittedAttempt >= attempts) {
-        return;
-      }
-
-      const attemptDateTimeIso = new Date().toISOString();
       submitAttempt({
         name: participant,
         seconds: totalTime,
         status: "LOSS",
-        attemptNumber: attempts || 1,
-        attemptDateTimeIso,
-        completedDateIso: null,
-      }).catch((e) => console.error(e));
+        attempts,
+        attemptDateTime: new Date().toISOString(),
+        completedDate: null,
+      });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentClueIndex, clues, submitted, completed]);
+  }, [
+    currentClueIndex,
+    clues,
+    submitted,
+    completed,
+    attempts,
+    lastSubmittedAttempt,
+    startTime,
+    participant,
+  ]);
 
-  /* UI rendering */
+  /* UI */
   if (!submitted) {
     return (
       <div className="entry">
@@ -311,7 +280,7 @@ export default function ClueGame() {
       <div className="game">
         <h2>No clues available 😢</h2>
         <p>
-          Please go to the <a href="/admin">admin page</a> and add clues for
+          Please go to the <a href="/admin">admin page</a> and add clues for{" "}
           {` ${slot}`}.
         </p>
       </div>
@@ -344,7 +313,6 @@ export default function ClueGame() {
   return (
     <div className="game" style={{ textAlign: "center", padding: 24 }}>
       <h2>Hello {participant} 👋</h2>
-
       {popup ? (
         <div className="popup-card" style={{ marginTop: 12 }}>
           {popup}
@@ -355,7 +323,6 @@ export default function ClueGame() {
             <strong>Clue {currentClueIndex + 1}:</strong>{" "}
             {clues[currentClueIndex]}
           </p>
-
           <input
             value={guess}
             onChange={(e) => setGuess(e.target.value)}
@@ -363,11 +330,14 @@ export default function ClueGame() {
             style={{ padding: 10, width: "80%", maxWidth: 360 }}
           />
           <div>
-            <button onClick={handleGuess} style={{ marginTop: 12 }}>
+            <button
+              onClick={handleGuess}
+              style={{ marginTop: 12 }}
+              disabled={loading || !guess.trim()}
+            >
               Submit
             </button>
           </div>
-
           <div style={{ marginTop: 12 }}>
             <small>Attempts so far: {attempts}</small>
           </div>
