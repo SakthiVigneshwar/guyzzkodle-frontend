@@ -5,23 +5,54 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 function LeaderboardPage() {
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split("T")[0]; // yyyy-mm-dd
+  });
+  const [slot, setSlot] = useState("AM");
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/participant/all`)
+    if (!selectedDate || !slot) return;
+
+    setLoading(true);
+    fetch(
+      `${API_BASE_URL}/api/participant/filter?date=${selectedDate}&slot=${slot}`
+    )
       .then((res) => res.json())
       .then((data) => {
-        setParticipants(data);
+        // Sorting by seconds ascending (fastest first)
+        const sorted = data.sort((a, b) => a.seconds - b.seconds);
+        setParticipants(sorted);
         setLoading(false);
       })
       .catch((err) => {
         console.error("Failed to fetch participants", err);
         setLoading(false);
       });
-  }, []);
+  }, [selectedDate, slot]);
 
   return (
     <div style={{ padding: "20px", textAlign: "center" }}>
       <h1>🏆 Guyzz kodle Leaderboard</h1>
+
+      {/* Filters */}
+      <div style={{ marginBottom: "20px" }}>
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          style={{ marginRight: "10px", padding: "5px" }}
+        />
+        <select
+          value={slot}
+          onChange={(e) => setSlot(e.target.value)}
+          style={{ padding: "5px" }}
+        >
+          <option value="AM">AM Slot (00:00–11:59)</option>
+          <option value="PM">PM Slot (12:00–23:59)</option>
+        </select>
+      </div>
+
       {loading ? (
         <p>Loading...</p>
       ) : participants.length === 0 ? (
@@ -79,11 +110,7 @@ function LeaderboardPage() {
               display: block;
               width: 100%;
             }
-
-            thead {
-              display: none;
-            }
-
+            thead { display: none; }
             tr {
               margin-bottom: 15px;
               background: #111;
@@ -91,7 +118,6 @@ function LeaderboardPage() {
               border-radius: 8px;
               padding: 10px;
             }
-
             td {
               text-align: left;
               padding-left: 50%;
@@ -100,7 +126,6 @@ function LeaderboardPage() {
               padding-bottom: 10px;
               color: #fff;
             }
-
             td::before {
               position: absolute;
               top: 10px;
@@ -110,7 +135,6 @@ function LeaderboardPage() {
               font-weight: bold;
               color: #aaa;
             }
-
             td:nth-of-type(1)::before { content: "#"; }
             td:nth-of-type(2)::before { content: "Name"; }
             td:nth-of-type(3)::before { content: "Time Taken (s)"; }
