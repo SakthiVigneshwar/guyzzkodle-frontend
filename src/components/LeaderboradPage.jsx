@@ -15,15 +15,14 @@ function LeaderboardPage() {
     if (!selectedDate || !slot) return;
 
     setLoading(true);
-    fetch(
-      `${API_BASE_URL}/api/participant/filter?date=${selectedDate}&slot=${slot}`
-    )
+    fetch(`${baseURL}/api/participant/date/${selectedDate}/slot/${slot}`)
       .then((res) => res.json())
       .then((data) => {
         // Sorting by seconds ascending (fastest first)
         const sorted = data.sort((a, b) => a.seconds - b.seconds);
         setParticipants(sorted);
         setLoading(false);
+        console.log(data);
       })
       .catch((err) => {
         console.error("Failed to fetch participants", err);
