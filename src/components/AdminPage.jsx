@@ -15,6 +15,10 @@ function AdminPage() {
   const [answer, setAnswer] = useState("");
   const [guesserList, setGuesserList] = useState([]);
 
+  // Reset button state
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMessage, setResetMessage] = useState("");
+
   const fetchCluesFromBackend = async () => {
     try {
       const response = await fetch(
@@ -62,6 +66,35 @@ function AdminPage() {
     const updated = [...clues];
     updated[index] = value;
     setClues(updated);
+  };
+
+  const handleResetAll = async () => {
+    const confirmReset = window.confirm(
+      "⚠️ Are you sure you want to reset attempts/seconds/status for ALL participants?"
+    );
+    if (!confirmReset) return;
+
+    try {
+      setResetLoading(true);
+      setResetMessage("");
+      const res = await fetch(`${baseURL}/api/participant/reset`, {
+        method: "POST",
+      });
+      const text = await res.text();
+      setResetLoading(false);
+      if (res.ok) {
+        setResetMessage(text || "✅ All participants reset successfully.");
+      } else {
+        setResetMessage(text || "❌ Reset failed. Check server logs.");
+      }
+    } catch (err) {
+      setResetLoading(false);
+      setResetMessage("❌ Reset request failed. Please try again.");
+      console.error("Reset error:", err);
+    }
+
+    // Auto-clear message after 4s
+    setTimeout(() => setResetMessage(""), 4000);
   };
 
   useEffect(() => {
@@ -117,6 +150,29 @@ function AdminPage() {
           onChange={(e) => setAnswer(e.target.value)}
         />
         <button onClick={saveDataToBackend}>💾 Save Clues</button>
+      </div>
+
+      {/* Reset all participants section */}
+      <div style={{ marginTop: 20 }}>
+        <button
+          onClick={handleResetAll}
+          disabled={resetLoading}
+          style={{
+            backgroundColor: "#e74c3c",
+            color: "white",
+            padding: "8px 12px",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+          }}
+        >
+          {resetLoading ? "Resetting..." : "🔄 Reset All Participants"}
+        </button>
+        {resetMessage && (
+          <span style={{ marginLeft: 10, fontWeight: "bold" }}>
+            {resetMessage}
+          </span>
+        )}
       </div>
 
       {guesserList.length > 0 && (

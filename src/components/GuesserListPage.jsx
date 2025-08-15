@@ -1,69 +1,125 @@
 import React, { useEffect, useState } from "react";
 
-function GuesserListPage() {
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+function LeaderboardPage() {
   const [participants, setParticipants] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(
-      "http://guyzkodlebackend-production.up.railway.app/api/participant/all"
-    )
+    fetch(`${API_BASE_URL}/api/participant/all`)
       .then((res) => res.json())
       .then((data) => {
         setParticipants(data);
+        setLoading(false);
       })
       .catch((err) => {
-        console.error("Failed to fetch participants:", err);
+        console.error("Failed to fetch participants", err);
+        setLoading(false);
       });
   }, []);
 
   return (
-    <div
-      style={{
-        padding: "40px",
-        fontFamily: "Arial",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        background: "#fff3f3",
-        minHeight: "100vh",
-      }}
-    >
-      <h2 style={{ marginBottom: "30px" }}>📊 Participants & Time Taken</h2>
-
-      {participants.length === 0 ? (
-        <p>No participants yet today 😔</p>
+    <div style={{ padding: "20px", textAlign: "center" }}>
+      <h1>🏆 Guyzz kodle Leaderboard</h1>
+      {loading ? (
+        <p>Loading...</p>
+      ) : participants.length === 0 ? (
+        <p>No participants yet!</p>
       ) : (
-        <table
-          border="1"
-          style={{
-            borderCollapse: "collapse",
-            width: "90%",
-            maxWidth: "500px",
-            boxShadow: "0 0 10px rgba(0,0,0,0.2)",
-          }}
-        >
-          <thead>
-            <tr style={{ backgroundColor: "#f0f0f0" }}>
-              <th style={{ padding: "12px" }}>👤 Name</th>
-              <th style={{ padding: "12px" }}>⏱ Time (sec)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {participants.map((p, i) => (
-              <tr key={i}>
-                <td style={{ padding: "12px", textAlign: "center" }}>
-                  {p.name}
-                </td>
-                <td style={{ padding: "12px", textAlign: "center" }}>
-                  {p.seconds}
-                </td>
+        <div style={{ overflowX: "auto", padding: "10px" }}>
+          <table
+            style={{
+              width: "100%",
+              maxWidth: "600px",
+              margin: "0 auto",
+              borderCollapse: "collapse",
+              fontSize: "16px",
+            }}
+          >
+            <thead>
+              <tr
+                style={{
+                  backgroundColor: "#222",
+                  color: "white",
+                  textAlign: "center",
+                }}
+              >
+                <th>#</th>
+                <th>Name</th>
+                <th>Time Taken (s)</th>
+                <th>Attempts</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {participants.map((p, index) => (
+                <tr
+                  key={p.id || index}
+                  style={{
+                    textAlign: "center",
+                    borderBottom: "1px solid #ccc",
+                  }}
+                >
+                  <td>{index + 1}</td>
+                  <td>{p.name}</td>
+                  <td>{p.seconds}</td>
+                  <td>{p.attempts}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
+
+      {/* Responsive table styles */}
+      <style>
+        {`
+          @media (max-width: 600px) {
+            table, thead, tbody, th, td, tr {
+              display: block;
+              width: 100%;
+            }
+
+            thead {
+              display: none;
+            }
+
+            tr {
+              margin-bottom: 15px;
+              background: #111;
+              border: 1px solid #444;
+              border-radius: 8px;
+              padding: 10px;
+            }
+
+            td {
+              text-align: left;
+              padding-left: 50%;
+              position: relative;
+              padding-top: 10px;
+              padding-bottom: 10px;
+              color: #fff;
+            }
+
+            td::before {
+              position: absolute;
+              top: 10px;
+              left: 10px;
+              width: 45%;
+              white-space: nowrap;
+              font-weight: bold;
+              color: #aaa;
+            }
+
+            td:nth-of-type(1)::before { content: "#"; }
+            td:nth-of-type(2)::before { content: "Name"; }
+            td:nth-of-type(3)::before { content: "Time Taken (s)"; }
+            td:nth-of-type(4)::before { content: "Attempts"; }
+          }
+        `}
+      </style>
     </div>
   );
 }
 
-export default GuesserListPage;
+export default LeaderboardPage;
