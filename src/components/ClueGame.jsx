@@ -36,6 +36,14 @@ function getSlot() {
   return hour < 12 ? "morning" : "evening";
 }
 
+// ✅ Always get date in IST
+function getISTDate() {
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  const ist = new Date(utc + 5.5 * 3600000);
+  return ist.toISOString().split("T")[0];
+}
+
 function ClueGame() {
   const [participant, setParticipant] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -51,7 +59,7 @@ function ClueGame() {
   const [loading, setLoading] = useState(false);
 
   const slot = getSlot();
-  const date = new Date().toISOString().split("T")[0];
+  const date = getISTDate(); // ✅ IST Date
 
   useEffect(() => {
     fetch(`${baseURL}/api/clues?date=${date}&slot=${slot}`)
@@ -121,6 +129,8 @@ function ClueGame() {
           name: participant,
           seconds: totalTime,
           status: "WIN",
+          date: getISTDate(), // ✅ IST date for submission
+          slot,
         }),
       }).catch((err) => console.error("Submit WIN error:", err));
     } else {
@@ -132,6 +142,8 @@ function ClueGame() {
           name: participant,
           seconds: totalTime,
           status: "LOSS",
+          date: getISTDate(), // ✅ IST date for submission
+          slot,
         }),
       }).catch((err) => console.error("Submit LOSS error:", err));
 
