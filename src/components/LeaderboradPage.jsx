@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+const baseURL =
+  process.env.REACT_APP_API_BASE_URL ||
+  "https://guyzkodlebackend-production.up.railway.app";
 
 function LeaderboardPage() {
   const [participants, setParticipants] = useState([]);
