@@ -22,7 +22,6 @@ function LeaderboardPage() {
         const sorted = data.sort((a, b) => a.seconds - b.seconds);
         setParticipants(sorted);
         setLoading(false);
-        console.log(data);
       })
       .catch((err) => {
         console.error("Failed to fetch participants", err);
