@@ -6,198 +6,149 @@ const baseURL =
 
 function AdminPage() {
   const emptyClues = ["", "", "", "", ""];
-
   const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0]; // yyyy-mm-dd
+    const storedDate = localStorage.getItem("selectedDate");
+    return storedDate || new Date().toISOString().split("T")[0];
   });
 
-  const [selectedSlot, setSelectedSlot] = useState("morning");
-  const [clues, setClues] = useState(emptyClues);
-  const [answer, setAnswer] = useState("");
-  const [guesserList, setGuesserList] = useState([]);
-
-  // Reset button state
-  const [resetLoading, setResetLoading] = useState(false);
-  const [resetMessage, setResetMessage] = useState("");
-
-  const fetchCluesFromBackend = async () => {
-    try {
-      const response = await fetch(
-        `${baseURL}/api/clues?date=${selectedDate}&slot=${selectedSlot}`
-      );
-      if (!response.ok) throw new Error("Failed to fetch clues");
-      const data = await response.json();
-      setClues(data.clues || emptyClues);
-      setAnswer(data.answer || "");
-    } catch (err) {
-      console.warn("No clues found for this slot. You can add new ones.");
-      setClues(emptyClues);
-      setAnswer("");
-    }
-  };
-
-  const saveDataToBackend = async () => {
-    if (clues.some((c) => c.trim() === "") || answer.trim() === "") {
-      alert("❗ Please fill all 5 clues and the answer.");
-      return;
-    }
-
-    const payload = {
-      date: selectedDate,
-      slot: selectedSlot,
-      clues,
-      answer,
-    };
-
-    try {
-      const res = await fetch(`${baseURL}/api/clues/save`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error("Failed to save clues");
-      alert(`✅ Clues saved for ${selectedDate} (${selectedSlot})`);
-    } catch (err) {
-      alert("❌ Failed to save clues.");
-      console.error(err);
-    }
-  };
-
-  const handleChange = (index, value) => {
-    const updated = [...clues];
-    updated[index] = value;
-    setClues(updated);
-  };
-
-  const handleResetAll = async () => {
-    const confirmReset = window.confirm(
-      "⚠️ Are you sure you want to reset attempts/seconds/status for ALL participants?"
-    );
-    if (!confirmReset) return;
-
-    try {
-      setResetLoading(true);
-      setResetMessage("");
-      const res = await fetch(`${baseURL}/api/participant/reset`, {
-        method: "POST",
-      });
-      const text = await res.text();
-      setResetLoading(false);
-      if (res.ok) {
-        setResetMessage(text || "✅ All participants reset successfully.");
-      } else {
-        setResetMessage(text || "❌ Reset failed. Check server logs.");
-      }
-    } catch (err) {
-      setResetLoading(false);
-      setResetMessage("❌ Reset request failed. Please try again.");
-      console.error("Reset error:", err);
-    }
-
-    // Auto-clear message after 4s
-    setTimeout(() => setResetMessage(""), 4000);
-  };
+  const [morningClues, setMorningClues] = useState([...emptyClues]);
+  const [afternoonClues, setAfternoonClues] = useState([...emptyClues]);
+  const [morningAnswer, setMorningAnswer] = useState("");
+  const [afternoonAnswer, setAfternoonAnswer] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
 
   useEffect(() => {
-    fetchCluesFromBackend();
+    fetch(`${baseURL}/clues?date=${selectedDate}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.morning) {
+          setMorningClues(data.morning.clues || [...emptyClues]);
+          setMorningAnswer(data.morning.answer || "");
+        } else {
+          setMorningClues([...emptyClues]);
+          setMorningAnswer("");
+        }
+        if (data.afternoon) {
+          setAfternoonClues(data.afternoon.clues || [...emptyClues]);
+          setAfternoonAnswer(data.afternoon.answer || "");
+        } else {
+          setAfternoonClues([...emptyClues]);
+          setAfternoonAnswer("");
+        }
+      })
+      .catch((err) => console.error("Error fetching clues:", err));
+  }, [selectedDate]);
 
-    // Load participant data (still from localStorage)
-    const guessers =
-      JSON.parse(localStorage.getItem(`movieGuessers_${selectedDate}`)) || [];
-    setGuesserList(guessers);
-  }, [selectedDate, selectedSlot]);
+  const handleSave = () => {
+    // ✅ Always send local date from localStorage or today's date
+    const localDate =
+      localStorage.getItem("selectedDate") ||
+      new Date().toISOString().split("T")[0];
+
+    const payload = {
+      date: localDate,
+      morning: {
+        clues: morningClues,
+        answer: morningAnswer,
+      },
+      afternoon: {
+        clues: afternoonClues,
+        answer: afternoonAnswer,
+      },
+    };
+
+    fetch(`${baseURL}/clues/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+      .then((res) => res.text())
+      .then((message) => {
+        setSaveMessage(message);
+        setTimeout(() => setSaveMessage(""), 2000);
+      })
+      .catch((err) => console.error("Error saving clues:", err));
+  };
+
+  const updateClue = (timeSlot, index, value) => {
+    if (timeSlot === "morning") {
+      const updated = [...morningClues];
+      updated[index] = value;
+      setMorningClues(updated);
+    } else {
+      const updated = [...afternoonClues];
+      updated[index] = value;
+      setAfternoonClues(updated);
+    }
+  };
 
   return (
-    <div className="admin-container">
-      <h2 className="admin-heading">🔐 Admin Panel - Movie Clues Setup</h2>
+    <div style={{ padding: 20 }}>
+      <h1>Admin Page</h1>
 
-      <div className="config-section">
-        <label>
-          📅 Select Date:
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-          />
-        </label>
-
-        <label>
-          ⏰ Time Slot:
-          <select
-            value={selectedSlot}
-            onChange={(e) => setSelectedSlot(e.target.value)}
-          >
-            <option value="morning">00:00 – 11:59 AM</option>
-            <option value="evening">12:00 PM – 11:59 PM</option>
-          </select>
-        </label>
-      </div>
-
-      <div className="clue-section">
-        <h3>
-          📝 Clues for {selectedDate} ({selectedSlot})
-        </h3>
-        {clues.map((clue, index) => (
-          <input
-            key={`clue-${index}`}
-            placeholder={`Clue ${index + 1}`}
-            value={clue}
-            onChange={(e) => handleChange(index, e.target.value)}
-          />
-        ))}
+      <label>
+        Select Date:{" "}
         <input
-          placeholder="Enter Movie Answer"
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-        />
-        <button onClick={saveDataToBackend}>💾 Save Clues</button>
-      </div>
-
-      {/* Reset all participants section */}
-      <div style={{ marginTop: 20 }}>
-        <button
-          onClick={handleResetAll}
-          disabled={resetLoading}
-          style={{
-            backgroundColor: "#e74c3c",
-            color: "white",
-            padding: "8px 12px",
-            border: "none",
-            borderRadius: 4,
-            cursor: "pointer",
+          type="date"
+          value={selectedDate}
+          onChange={(e) => {
+            setSelectedDate(e.target.value);
+            localStorage.setItem("selectedDate", e.target.value);
           }}
-        >
-          {resetLoading ? "Resetting..." : "🔄 Reset All Participants"}
-        </button>
-        {resetMessage && (
-          <span style={{ marginLeft: 10, fontWeight: "bold" }}>
-            {resetMessage}
-          </span>
-        )}
+        />
+      </label>
+
+      <div style={{ display: "flex", gap: 50, marginTop: 20 }}>
+        {/* Morning slot */}
+        <div>
+          <h2>00:00 AM - 11:59 AM</h2>
+          {morningClues.map((clue, idx) => (
+            <div key={idx}>
+              <input
+                type="text"
+                placeholder={`Clue ${idx + 1}`}
+                value={clue}
+                onChange={(e) => updateClue("morning", idx, e.target.value)}
+              />
+            </div>
+          ))}
+          <input
+            type="text"
+            placeholder="Answer"
+            value={morningAnswer}
+            onChange={(e) => setMorningAnswer(e.target.value)}
+            style={{ marginTop: 10 }}
+          />
+        </div>
+
+        {/* Afternoon slot */}
+        <div>
+          <h2>12:00 PM - 11:59 PM</h2>
+          {afternoonClues.map((clue, idx) => (
+            <div key={idx}>
+              <input
+                type="text"
+                placeholder={`Clue ${idx + 1}`}
+                value={clue}
+                onChange={(e) => updateClue("afternoon", idx, e.target.value)}
+              />
+            </div>
+          ))}
+          <input
+            type="text"
+            placeholder="Answer"
+            value={afternoonAnswer}
+            onChange={(e) => setAfternoonAnswer(e.target.value)}
+            style={{ marginTop: 10 }}
+          />
+        </div>
       </div>
 
-      {guesserList.length > 0 && (
-        <div className="guesser-table">
-          <h4>🧑‍🎓 Today's Participants ({selectedDate}):</h4>
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Time Taken (s)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {guesserList.map((g, i) => (
-                <tr key={i}>
-                  <td>{g.name}</td>
-                  <td>{g.time}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* Save Button */}
+      <div style={{ marginTop: 20 }}>
+        <button onClick={handleSave}>💾 Save Clues</button>
+        {saveMessage && <span style={{ marginLeft: 10 }}>{saveMessage}</span>}
+      </div>
     </div>
   );
 }
