@@ -19,7 +19,7 @@ function AdminPage() {
   const fetchCluesFromBackend = async () => {
     try {
       const response = await fetch(
-        `${baseURL}/clues?date=${selectedDate}&slot=${selectedSlot}`
+        `${baseURL}/api/clues?date=${selectedDate}&slot=${selectedSlot}`
       );
       if (!response.ok) throw new Error("Failed to fetch clues");
       const data = await response.json();
@@ -48,7 +48,7 @@ function AdminPage() {
     };
 
     try {
-      const res = await fetch(`${baseURL}/clues/save`, {
+      const res = await fetch(`${baseURL}/api/clues/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -65,7 +65,7 @@ function AdminPage() {
   const fetchGuessersFromBackend = async () => {
     try {
       const response = await fetch(
-        `${baseURL}/participants?date=${selectedDate}&slot=${selectedSlot}`
+        `${baseURL}/api/participants?date=${selectedDate}&slot=${selectedSlot}`
       );
       if (!response.ok) throw new Error("Failed to fetch participants");
       const data = await response.json();
