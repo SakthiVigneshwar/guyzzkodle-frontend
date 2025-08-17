@@ -6,16 +6,21 @@ const baseURL =
 
 function AdminPage() {
   const emptyClues = ["", "", "", "", ""];
+
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split("T")[0]; // yyyy-mm-dd
   });
+
   const [selectedSlot, setSelectedSlot] = useState("morning");
   const [clues, setClues] = useState(emptyClues);
   const [answer, setAnswer] = useState("");
   const [guesserList, setGuesserList] = useState([]);
 
-  // 🔹 Fetch Clues from Backend
+  // Reset button state
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMessage, setResetMessage] = useState("");
+
   const fetchCluesFromBackend = async () => {
     try {
       const response = await fetch(
@@ -23,17 +28,15 @@ function AdminPage() {
       );
       if (!response.ok) throw new Error("Failed to fetch clues");
       const data = await response.json();
-
       setClues(data.clues || emptyClues);
       setAnswer(data.answer || "");
     } catch (err) {
-      console.warn("⚠️ No clues found for this slot.");
+      console.warn("No clues found for this slot. You can add new ones.");
       setClues(emptyClues);
       setAnswer("");
     }
   };
 
-  // 🔹 Save Clues to Backend
   const saveDataToBackend = async () => {
     if (clues.some((c) => c.trim() === "") || answer.trim() === "") {
       alert("❗ Please fill all 5 clues and the answer.");
@@ -61,39 +64,54 @@ function AdminPage() {
     }
   };
 
-  // 🔹 Fetch Guessers from Backend
-  const fetchGuessersFromBackend = async () => {
-    try {
-      const response = await fetch(
-        `${baseURL}/api/participants?date=${selectedDate}&slot=${selectedSlot}`
-      );
-      if (!response.ok) throw new Error("Failed to fetch participants");
-      const data = await response.json();
-      setGuesserList(data || []);
-    } catch (err) {
-      console.warn("⚠️ No participants found for this slot.");
-      setGuesserList([]);
-    }
-  };
-
-  // 🔹 Handle Clue Input Change
   const handleChange = (index, value) => {
     const updated = [...clues];
     updated[index] = value;
     setClues(updated);
   };
 
-  // 🔹 Fetch when date/slot changes
+  const handleResetAll = async () => {
+    const confirmReset = window.confirm(
+      "⚠️ Are you sure you want to reset attempts/seconds/status for ALL participants?"
+    );
+    if (!confirmReset) return;
+
+    try {
+      setResetLoading(true);
+      setResetMessage("");
+      const res = await fetch(`${baseURL}/api/participant/reset`, {
+        method: "POST",
+      });
+      const text = await res.text();
+      setResetLoading(false);
+      if (res.ok) {
+        setResetMessage(text || "✅ All participants reset successfully.");
+      } else {
+        setResetMessage(text || "❌ Reset failed. Check server logs.");
+      }
+    } catch (err) {
+      setResetLoading(false);
+      setResetMessage("❌ Reset request failed. Please try again.");
+      console.error("Reset error:", err);
+    }
+
+    // Auto-clear message after 4s
+    setTimeout(() => setResetMessage(""), 4000);
+  };
+
   useEffect(() => {
     fetchCluesFromBackend();
-    fetchGuessersFromBackend();
+
+    // Load participant data (still from localStorage)
+    const guessers =
+      JSON.parse(localStorage.getItem(`movieGuessers_${selectedDate}`)) || [];
+    setGuesserList(guessers);
   }, [selectedDate, selectedSlot]);
 
   return (
     <div className="admin-container">
       <h2 className="admin-heading">🔐 Admin Panel - Movie Clues Setup</h2>
 
-      {/* Config Section */}
       <div className="config-section">
         <label>
           📅 Select Date:
@@ -116,7 +134,6 @@ function AdminPage() {
         </label>
       </div>
 
-      {/* Clues Section */}
       <div className="clue-section">
         <h3>
           📝 Clues for {selectedDate} ({selectedSlot})
@@ -137,39 +154,49 @@ function AdminPage() {
         <button onClick={saveDataToBackend}>💾 Save Clues</button>
       </div>
 
-      {/* Participants Table */}
+      {/* Reset all participants section */}
+      <div style={{ marginTop: 20 }}>
+        <button
+          onClick={handleResetAll}
+          disabled={resetLoading}
+          style={{
+            backgroundColor: "#e74c3c",
+            color: "white",
+            padding: "8px 12px",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+          }}
+        >
+          {resetLoading ? "Resetting..." : "🔄 Reset All Participants"}
+        </button>
+        {resetMessage && (
+          <span style={{ marginLeft: 10, fontWeight: "bold" }}>
+            {resetMessage}
+          </span>
+        )}
+      </div>
+
       {guesserList.length > 0 && (
         <div className="guesser-table">
-          <h4>
-            🧑‍🎓 Participants for {selectedDate} ({selectedSlot}) :
-          </h4>
+          <h4>🧑‍🎓 Today's Participants ({selectedDate}):</h4>
           <table>
             <thead>
               <tr>
                 <th>Name</th>
                 <th>Time Taken (s)</th>
-                <th>Status</th>
-                <th>Total Attempts</th>
-                <th>Current Attempt</th>
               </tr>
             </thead>
             <tbody>
               {guesserList.map((g, i) => (
                 <tr key={i}>
                   <td>{g.name}</td>
-                  <td>{g.seconds}</td>
-                  <td>{g.status}</td>
-                  <td>{g.totalAttempts}</td>
-                  <td>{g.currentAttempt}</td>
+                  <td>{g.time}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
-
-      {guesserList.length === 0 && (
-        <p className="no-data">⚠️ No participants yet for this slot.</p>
       )}
     </div>
   );
