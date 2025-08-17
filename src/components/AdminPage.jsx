@@ -23,10 +23,11 @@ function AdminPage() {
       );
       if (!response.ok) throw new Error("Failed to fetch clues");
       const data = await response.json();
+
       setClues(data.clues || emptyClues);
       setAnswer(data.answer || "");
     } catch (err) {
-      console.warn("⚠️ No clues found for this slot. You can add new ones.");
+      console.warn("⚠️ No clues found for this slot.");
       setClues(emptyClues);
       setAnswer("");
     }
@@ -60,6 +61,21 @@ function AdminPage() {
     }
   };
 
+  // 🔹 Fetch Guessers from Backend
+  const fetchGuessersFromBackend = async () => {
+    try {
+      const response = await fetch(
+        `${baseURL}/participants?date=${selectedDate}&slot=${selectedSlot}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch participants");
+      const data = await response.json();
+      setGuesserList(data || []);
+    } catch (err) {
+      console.warn("⚠️ No participants found for this slot.");
+      setGuesserList([]);
+    }
+  };
+
   // 🔹 Handle Clue Input Change
   const handleChange = (index, value) => {
     const updated = [...clues];
@@ -67,19 +83,17 @@ function AdminPage() {
     setClues(updated);
   };
 
+  // 🔹 Fetch when date/slot changes
   useEffect(() => {
     fetchCluesFromBackend();
-
-    // Participant data (still localStorage)
-    const guessers =
-      JSON.parse(localStorage.getItem(`movieGuessers_${selectedDate}`)) || [];
-    setGuesserList(guessers);
+    fetchGuessersFromBackend();
   }, [selectedDate, selectedSlot]);
 
   return (
     <div className="admin-container">
       <h2 className="admin-heading">🔐 Admin Panel - Movie Clues Setup</h2>
 
+      {/* Config Section */}
       <div className="config-section">
         <label>
           📅 Select Date:
@@ -102,6 +116,7 @@ function AdminPage() {
         </label>
       </div>
 
+      {/* Clues Section */}
       <div className="clue-section">
         <h3>
           📝 Clues for {selectedDate} ({selectedSlot})
@@ -122,26 +137,39 @@ function AdminPage() {
         <button onClick={saveDataToBackend}>💾 Save Clues</button>
       </div>
 
+      {/* Participants Table */}
       {guesserList.length > 0 && (
         <div className="guesser-table">
-          <h4>🧑‍🎓 Today's Participants ({selectedDate}):</h4>
+          <h4>
+            🧑‍🎓 Participants for {selectedDate} ({selectedSlot}) :
+          </h4>
           <table>
             <thead>
               <tr>
                 <th>Name</th>
                 <th>Time Taken (s)</th>
+                <th>Status</th>
+                <th>Total Attempts</th>
+                <th>Current Attempt</th>
               </tr>
             </thead>
             <tbody>
               {guesserList.map((g, i) => (
                 <tr key={i}>
                   <td>{g.name}</td>
-                  <td>{g.time}</td>
+                  <td>{g.seconds}</td>
+                  <td>{g.status}</td>
+                  <td>{g.totalAttempts}</td>
+                  <td>{g.currentAttempt}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {guesserList.length === 0 && (
+        <p className="no-data">⚠️ No participants yet for this slot.</p>
       )}
     </div>
   );

@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from "react";
 import Confetti from "./Confetti";
 
-const baseURL = process.env.REACT_APP_API_BASE_URL;
+const baseURL =
+  process.env.REACT_APP_API_BASE_URL ||
+  "https://guyzkodlebackend-production.up.railway.app"; // ✅ fallback
 
+// ✅ Fuzzy match function
 function isSimilar(a, b) {
   a = a.trim().toLowerCase();
   b = b.trim().toLowerCase();
+
+  if (!a || !b) return false;
 
   const lenA = a.length;
   const lenB = b.length;
@@ -31,12 +36,13 @@ function isSimilar(a, b) {
   return similarity >= 0.5;
 }
 
+// ✅ Slot by IST
 function getSlot() {
   const hour = new Date().getHours();
   return hour < 12 ? "morning" : "evening";
 }
 
-// ✅ Always get date in IST
+// ✅ IST Date always
 function getISTDate() {
   const now = new Date();
   const utc = now.getTime() + now.getTimezoneOffset() * 60000;
@@ -59,8 +65,9 @@ function ClueGame() {
   const [loading, setLoading] = useState(false);
 
   const slot = getSlot();
-  const date = getISTDate(); // ✅ IST Date
+  const date = getISTDate();
 
+  // 🔹 Fetch Clues
   useEffect(() => {
     fetch(`${baseURL}/api/clues?date=${date}&slot=${slot}`)
       .then((res) => {
@@ -75,6 +82,7 @@ function ClueGame() {
         alert(`⚠️ No clues found for today (${slot}). Ask admin to set it.`);
       });
 
+    // 🔄 Auto-refresh at midnight
     const interval = setInterval(() => {
       const now = new Date();
       if (now.getHours() === 0 && now.getMinutes() === 0) {
@@ -85,8 +93,12 @@ function ClueGame() {
     return () => clearInterval(interval);
   }, [date, slot]);
 
+  // 🔹 Start Game
   const handleStart = () => {
-    if (!participant.trim()) return;
+    if (!participant.trim()) {
+      alert("❗ Please enter your name.");
+      return;
+    }
     if (clues.length < 1) {
       alert("🚫 No clues loaded! Ask admin to set the clues.");
       return;
@@ -95,10 +107,7 @@ function ClueGame() {
     setLoading(true);
 
     fetch(`${baseURL}/api/participant/check/${participant}`)
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
       .then((isValid) => {
         setLoading(false);
         if (isValid === true || isValid?.valid === true) {
@@ -114,12 +123,12 @@ function ClueGame() {
       });
   };
 
+  // 🔹 Guess Handler
   const handleGuess = () => {
     const totalTime = Math.floor((Date.now() - startTime) / 1000);
 
     if (isSimilar(guess, answer)) {
       setTimeTaken(totalTime);
-      localStorage.setItem("completionTime", totalTime.toString());
       setCompleted(true);
 
       fetch(`${baseURL}/api/participant/submit`, {
@@ -129,12 +138,12 @@ function ClueGame() {
           name: participant,
           seconds: totalTime,
           status: "WIN",
-          date: getISTDate(), // ✅ IST date for submission
+          date,
           slot,
         }),
       }).catch((err) => console.error("Submit WIN error:", err));
     } else {
-      // LOSS submission before showing next clue
+      // LOSS for this guess
       fetch(`${baseURL}/api/participant/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -142,11 +151,12 @@ function ClueGame() {
           name: participant,
           seconds: totalTime,
           status: "LOSS",
-          date: getISTDate(), // ✅ IST date for submission
+          date,
           slot,
         }),
       }).catch((err) => console.error("Submit LOSS error:", err));
 
+      // Show countdown for next clue
       let count = 3;
       setPopup(`❌ Incorrect! Next clue in ${count}...`);
       const interval = setInterval(() => {
@@ -163,6 +173,7 @@ function ClueGame() {
     }
   };
 
+  // 🔹 UI States
   if (!submitted) {
     return (
       <div className="entry">
@@ -184,8 +195,8 @@ function ClueGame() {
           {showHowTo && (
             <div className="howto-box">
               <p>
-                Guess the movie based on the clues. The clues change every
-                morning and evening, so come back later for new challenges!
+                Guess the movie based on the clues. Clues change every morning &
+                evening (IST). Be fast, your time is recorded ⏱️
               </p>
             </div>
           )}
