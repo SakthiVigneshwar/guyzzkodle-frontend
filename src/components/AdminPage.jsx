@@ -15,22 +15,24 @@ function AdminPage() {
   const [answer, setAnswer] = useState("");
   const [guesserList, setGuesserList] = useState([]);
 
+  // 🔹 Fetch Clues from Backend
   const fetchCluesFromBackend = async () => {
     try {
       const response = await fetch(
-        `${baseURL}/api/clues?date=${selectedDate}&slot=${selectedSlot}`
+        `${baseURL}/clues?date=${selectedDate}&slot=${selectedSlot}`
       );
       if (!response.ok) throw new Error("Failed to fetch clues");
       const data = await response.json();
       setClues(data.clues || emptyClues);
       setAnswer(data.answer || "");
     } catch (err) {
-      console.warn("No clues found for this slot. You can add new ones.");
+      console.warn("⚠️ No clues found for this slot. You can add new ones.");
       setClues(emptyClues);
       setAnswer("");
     }
   };
 
+  // 🔹 Save Clues to Backend
   const saveDataToBackend = async () => {
     if (clues.some((c) => c.trim() === "") || answer.trim() === "") {
       alert("❗ Please fill all 5 clues and the answer.");
@@ -45,7 +47,7 @@ function AdminPage() {
     };
 
     try {
-      const res = await fetch(`${baseURL}/api/clues/save`, {
+      const res = await fetch(`${baseURL}/clues/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -58,6 +60,7 @@ function AdminPage() {
     }
   };
 
+  // 🔹 Handle Clue Input Change
   const handleChange = (index, value) => {
     const updated = [...clues];
     updated[index] = value;
@@ -67,7 +70,7 @@ function AdminPage() {
   useEffect(() => {
     fetchCluesFromBackend();
 
-    // Load participant data (still from localStorage)
+    // Participant data (still localStorage)
     const guessers =
       JSON.parse(localStorage.getItem(`movieGuessers_${selectedDate}`)) || [];
     setGuesserList(guessers);
