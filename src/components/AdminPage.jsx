@@ -6,9 +6,10 @@ const baseURL =
 
 function AdminPage() {
   const emptyClues = ["", "", "", "", ""];
+
   const [selectedDate, setSelectedDate] = useState(() => {
-    const storedDate = localStorage.getItem("selectedDate");
-    return storedDate || new Date().toISOString().split("T")[0];
+    const stored = localStorage.getItem("selectedDate");
+    return stored || new Date().toISOString().split("T")[0];
   });
 
   const [morningClues, setMorningClues] = useState([...emptyClues]);
@@ -18,68 +19,52 @@ function AdminPage() {
   const [saveMessage, setSaveMessage] = useState("");
 
   useEffect(() => {
-    fetch(`${baseURL}/clues?date=${selectedDate}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.morning) {
-          setMorningClues(data.morning.clues || [...emptyClues]);
-          setMorningAnswer(data.morning.answer || "");
-        } else {
-          setMorningClues([...emptyClues]);
-          setMorningAnswer("");
-        }
-        if (data.afternoon) {
-          setAfternoonClues(data.afternoon.clues || [...emptyClues]);
-          setAfternoonAnswer(data.afternoon.answer || "");
-        } else {
-          setAfternoonClues([...emptyClues]);
-          setAfternoonAnswer("");
-        }
-      })
-      .catch((err) => console.error("Error fetching clues:", err));
+    const fetchClues = async () => {
+      try {
+        const res = await fetch(`${baseURL}/clues?date=${selectedDate}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        setMorningClues(data.morning?.clues || [...emptyClues]);
+        setMorningAnswer(data.morning?.answer || "");
+        setAfternoonClues(data.afternoon?.clues || [...emptyClues]);
+        setAfternoonAnswer(data.afternoon?.answer || "");
+      } catch (err) {
+        console.error("Error fetching clues:", err);
+      }
+    };
+    fetchClues();
   }, [selectedDate]);
 
-  const handleSave = () => {
-    // ✅ Always send local date from localStorage or today's date
-    const localDate =
-      localStorage.getItem("selectedDate") ||
-      new Date().toISOString().split("T")[0];
+  const handleSave = async () => {
+    try {
+      const payload = {
+        date: selectedDate,
+        morning: { clues: morningClues, answer: morningAnswer },
+        afternoon: { clues: afternoonClues, answer: afternoonAnswer },
+      };
 
-    const payload = {
-      date: localDate,
-      morning: {
-        clues: morningClues,
-        answer: morningAnswer,
-      },
-      afternoon: {
-        clues: afternoonClues,
-        answer: afternoonAnswer,
-      },
-    };
+      const res = await fetch(`${baseURL}/clues/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    fetch(`${baseURL}/clues/save`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-      .then((res) => res.text())
-      .then((message) => {
-        setSaveMessage(message);
-        setTimeout(() => setSaveMessage(""), 2000);
-      })
-      .catch((err) => console.error("Error saving clues:", err));
+      const message = await res.text();
+      setSaveMessage(message);
+      setTimeout(() => setSaveMessage(""), 2000);
+    } catch (err) {
+      console.error("Error saving clues:", err);
+      setSaveMessage("Failed to save!");
+    }
   };
 
-  const updateClue = (timeSlot, index, value) => {
-    if (timeSlot === "morning") {
-      const updated = [...morningClues];
-      updated[index] = value;
-      setMorningClues(updated);
-    } else {
-      const updated = [...afternoonClues];
-      updated[index] = value;
-      setAfternoonClues(updated);
-    }
+  const updateClue = (slot, index, value) => {
+    const setter = slot === "morning" ? setMorningClues : setAfternoonClues;
+    const current =
+      slot === "morning" ? [...morningClues] : [...afternoonClues];
+    current[index] = value;
+    setter(current);
   };
 
   return (
@@ -99,16 +84,16 @@ function AdminPage() {
       </label>
 
       <div style={{ display: "flex", gap: 50, marginTop: 20 }}>
-        {/* Morning slot */}
+        {/* Morning */}
         <div>
           <h2>00:00 AM - 11:59 AM</h2>
-          {morningClues.map((clue, idx) => (
-            <div key={idx}>
+          {morningClues.map((clue, i) => (
+            <div key={i}>
               <input
                 type="text"
-                placeholder={`Clue ${idx + 1}`}
+                placeholder={`Clue ${i + 1}`}
                 value={clue}
-                onChange={(e) => updateClue("morning", idx, e.target.value)}
+                onChange={(e) => updateClue("morning", i, e.target.value)}
               />
             </div>
           ))}
@@ -121,16 +106,16 @@ function AdminPage() {
           />
         </div>
 
-        {/* Afternoon slot */}
+        {/* Afternoon */}
         <div>
           <h2>12:00 PM - 11:59 PM</h2>
-          {afternoonClues.map((clue, idx) => (
-            <div key={idx}>
+          {afternoonClues.map((clue, i) => (
+            <div key={i}>
               <input
                 type="text"
-                placeholder={`Clue ${idx + 1}`}
+                placeholder={`Clue ${i + 1}`}
                 value={clue}
-                onChange={(e) => updateClue("afternoon", idx, e.target.value)}
+                onChange={(e) => updateClue("afternoon", i, e.target.value)}
               />
             </div>
           ))}
@@ -144,7 +129,6 @@ function AdminPage() {
         </div>
       </div>
 
-      {/* Save Button */}
       <div style={{ marginTop: 20 }}>
         <button onClick={handleSave}>💾 Save Clues</button>
         {saveMessage && <span style={{ marginLeft: 10 }}>{saveMessage}</span>}
