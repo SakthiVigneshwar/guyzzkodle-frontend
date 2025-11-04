@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 
+// ✅ Add /api suffix to match your Spring Boot controller routes
 const baseURL =
   process.env.REACT_APP_API_BASE_URL ||
-  "https://guyzkodlebackend-production.up.railway.app";
+  "https://guyzkodlebackend-production.up.railway.app/api";
 
 function AdminPage() {
   const emptyClues = ["", "", "", "", ""];
@@ -22,8 +23,14 @@ function AdminPage() {
     const fetchClues = async () => {
       try {
         const res = await fetch(`${baseURL}/clues?date=${selectedDate}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        if (!res.ok) {
+          console.error(`HTTP ${res.status} while fetching clues`);
+          throw new Error(`HTTP ${res.status}`);
+        }
+
         const data = await res.json();
+        console.log("Fetched data:", data);
 
         setMorningClues(data.morning?.clues || [...emptyClues]);
         setMorningAnswer(data.morning?.answer || "");
@@ -31,8 +38,13 @@ function AdminPage() {
         setAfternoonAnswer(data.afternoon?.answer || "");
       } catch (err) {
         console.error("Error fetching clues:", err);
+        setMorningClues([...emptyClues]);
+        setAfternoonClues([...emptyClues]);
+        setMorningAnswer("");
+        setAfternoonAnswer("");
       }
     };
+
     fetchClues();
   }, [selectedDate]);
 
@@ -50,8 +62,12 @@ function AdminPage() {
         body: JSON.stringify(payload),
       });
 
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
       const message = await res.text();
-      setSaveMessage(message);
+      setSaveMessage(message || "Clues saved successfully!");
       setTimeout(() => setSaveMessage(""), 2000);
     } catch (err) {
       console.error("Error saving clues:", err);
@@ -84,7 +100,7 @@ function AdminPage() {
       </label>
 
       <div style={{ display: "flex", gap: 50, marginTop: 20 }}>
-        {/* Morning */}
+        {/* Morning Slot */}
         <div>
           <h2>00:00 AM - 11:59 AM</h2>
           {morningClues.map((clue, i) => (
@@ -106,7 +122,7 @@ function AdminPage() {
           />
         </div>
 
-        {/* Afternoon */}
+        {/* Afternoon Slot */}
         <div>
           <h2>12:00 PM - 11:59 PM</h2>
           {afternoonClues.map((clue, i) => (
@@ -129,9 +145,12 @@ function AdminPage() {
         </div>
       </div>
 
+      {/* Save Button */}
       <div style={{ marginTop: 20 }}>
         <button onClick={handleSave}>💾 Save Clues</button>
-        {saveMessage && <span style={{ marginLeft: 10 }}>{saveMessage}</span>}
+        {saveMessage && (
+          <span style={{ marginLeft: 10, color: "green" }}>{saveMessage}</span>
+        )}
       </div>
     </div>
   );
