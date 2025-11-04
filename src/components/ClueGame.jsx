@@ -69,7 +69,7 @@ function ClueGame() {
 
   // 🔹 Fetch Clues
   useEffect(() => {
-    fetch(`${baseURL}/api/clues?date=${date}&slot=${slot}`)
+    fetch(`${baseURL}/clues?date=${date}&slot=${slot}`)
       .then((res) => {
         if (!res.ok) throw new Error("No clues found");
         return res.json();

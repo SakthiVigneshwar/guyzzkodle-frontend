@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 // ✅ Add /api suffix to match your Spring Boot controller routes
 const baseURL =
   process.env.REACT_APP_API_BASE_URL ||
-  "https://guyzkodlebackend-production.up.railway.app/api";
+  "https://guyzkodlebackend-production.up.railway.app";
 
 function AdminPage() {
   const emptyClues = ["", "", "", "", ""];
