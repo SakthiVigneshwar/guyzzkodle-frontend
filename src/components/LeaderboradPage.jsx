@@ -17,7 +17,7 @@ function LeaderboardPage() {
     if (!selectedDate || !slot) return;
 
     setLoading(true);
-    fetch(`${baseURL}/api/participant/date/${selectedDate}/slot/${slot}`)
+    fetch(`${baseURL}/participant/date/${selectedDate}/slot/${slot}`)
       .then((res) => res.json())
       .then((data) => {
         // Sorting by seconds ascending (fastest first)
