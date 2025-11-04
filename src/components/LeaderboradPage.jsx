@@ -48,8 +48,8 @@ function LeaderboardPage() {
           onChange={(e) => setSlot(e.target.value)}
           style={{ padding: "5px" }}
         >
-          <option value="AM">AM Slot (00:00–11:59)</option>
-          <option value="PM">PM Slot (12:00–23:59)</option>
+          <option value="morning">AM Slot (00:00–11:59)</option>
+          <option value="evening">PM Slot (12:00–23:59)</option>
         </select>
       </div>
 
