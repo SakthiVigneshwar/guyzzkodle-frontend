@@ -3,46 +3,40 @@ import Confetti from "./Confetti";
 
 const baseURL =
   process.env.REACT_APP_API_BASE_URL ||
-  "https://guyzkodlebackend-production.up.railway.app"; // ✅ fallback
+  "https://guyzkodlebackend-production.up.railway.app"; // ✅ backend base
 
-// ✅ Fuzzy match function
+// ✅ fuzzy string match (same as before)
 function isSimilar(a, b) {
   a = a.trim().toLowerCase();
   b = b.trim().toLowerCase();
-
   if (!a || !b) return false;
 
-  const lenA = a.length;
-  const lenB = b.length;
-  const dp = Array.from({ length: lenA + 1 }, () => Array(lenB + 1).fill(0));
+  const dp = Array.from({ length: a.length + 1 }, () =>
+    Array(b.length + 1).fill(0)
+  );
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
 
-  for (let i = 0; i <= lenA; i++) dp[i][0] = i;
-  for (let j = 0; j <= lenB; j++) dp[0][j] = j;
-
-  for (let i = 1; i <= lenA; i++) {
-    for (let j = 1; j <= lenB; j++) {
-      if (a[i - 1] === b[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1];
-      } else {
-        dp[i][j] = 1 + Math.min(dp[i - 1][j - 1], dp[i][j - 1], dp[i - 1][j]);
-      }
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] =
+        a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
     }
   }
 
-  const distance = dp[lenA][lenB];
-  const maxLen = Math.max(lenA, lenB);
-  const similarity = 1 - distance / maxLen;
-
+  const distance = dp[a.length][b.length];
+  const similarity = 1 - distance / Math.max(a.length, b.length);
   return similarity >= 0.5;
 }
 
-// ✅ Slot by IST
+// ✅ detect slot (morning / afternoon)
 function getSlot() {
   const hour = new Date().getHours();
-  return hour < 12 ? "morning" : "evening";
+  return hour < 12 ? "morning" : "afternoon";
 }
 
-// ✅ IST Date always
 function getISTDate() {
   const now = new Date();
   const utc = now.getTime() + now.getTimezoneOffset() * 60000;
@@ -67,46 +61,39 @@ function ClueGame() {
   const slot = getSlot();
   const date = getISTDate();
 
-  // 🔹 Fetch Clues
+  // 🔹 Fetch Clues properly
   useEffect(() => {
-    fetch(`${baseURL}/clues?date=${date}&slot=${slot}`)
+    fetch(`${baseURL}/clues?date=${date}`)
       .then((res) => {
         if (!res.ok) throw new Error("No clues found");
         return res.json();
       })
       .then((data) => {
-        setClues(data.clues || []);
-        setAnswer(data.answer || "");
+        const slotData = data[slot];
+        if (slotData) {
+          setClues(slotData.clues || []);
+          setAnswer(slotData.answer || "");
+        } else {
+          alert(`⚠️ No ${slot} clues found for today.`);
+        }
       })
       .catch(() => {
         alert(`⚠️ No clues found for today (${slot}). Ask admin to set it.`);
       });
-
-    // 🔄 Auto-refresh at midnight
-    const interval = setInterval(() => {
-      const now = new Date();
-      if (now.getHours() === 0 && now.getMinutes() === 0) {
-        window.location.reload();
-      }
-    }, 60000);
-
-    return () => clearInterval(interval);
   }, [date, slot]);
 
-  // 🔹 Start Game
   const handleStart = () => {
     if (!participant.trim()) {
       alert("❗ Please enter your name.");
       return;
     }
-    if (clues.length < 1) {
+    if (clues.length === 0) {
       alert("🚫 No clues loaded! Ask admin to set the clues.");
       return;
     }
 
     setLoading(true);
-
-    fetch(`${baseURL}/api/participant/check/${participant}`)
+    fetch(`${baseURL}/participant/check/${participant}`)
       .then((res) => (res.ok ? res.json() : Promise.reject()))
       .then((isValid) => {
         setLoading(false);
@@ -123,7 +110,6 @@ function ClueGame() {
       });
   };
 
-  // 🔹 Guess Handler
   const handleGuess = () => {
     const totalTime = Math.floor((Date.now() - startTime) / 1000);
 
@@ -131,7 +117,7 @@ function ClueGame() {
       setTimeTaken(totalTime);
       setCompleted(true);
 
-      fetch(`${baseURL}/api/participant/submit`, {
+      fetch(`${baseURL}/participant/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -141,10 +127,9 @@ function ClueGame() {
           date,
           slot,
         }),
-      }).catch((err) => console.error("Submit WIN error:", err));
+      });
     } else {
-      // LOSS for this guess
-      fetch(`${baseURL}/api/participant/submit`, {
+      fetch(`${baseURL}/participant/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -154,13 +139,12 @@ function ClueGame() {
           date,
           slot,
         }),
-      }).catch((err) => console.error("Submit LOSS error:", err));
+      });
 
-      // Show countdown for next clue
       let count = 3;
       setPopup(`❌ Incorrect! Next clue in ${count}...`);
       const interval = setInterval(() => {
-        count -= 1;
+        count--;
         if (count === 0) {
           clearInterval(interval);
           setCurrentClueIndex((prev) => prev + 1);
@@ -173,7 +157,7 @@ function ClueGame() {
     }
   };
 
-  // 🔹 UI States
+  // 🔹 UI (same as before)
   if (!submitted) {
     return (
       <div className="entry">
@@ -187,7 +171,6 @@ function ClueGame() {
         <button onClick={handleStart} disabled={loading}>
           {loading ? "Checking..." : "Start"}
         </button>
-
         <div style={{ marginTop: "20px" }}>
           <button onClick={() => setShowHowTo(!showHowTo)}>
             ❓ How to Play
@@ -195,7 +178,7 @@ function ClueGame() {
           {showHowTo && (
             <div className="howto-box">
               <p>
-                Guess the movie based on the clues. Clues change every morning &
+                Guess the movie based on clues. Clues change every morning &
                 evening (IST). Be fast, your time is recorded ⏱️
               </p>
             </div>
